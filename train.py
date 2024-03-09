@@ -1,9 +1,10 @@
-# train.py is the main file to train the model
-#for one game:
 initialize model 
 initialize opponent (either itself, other chess bot, past version of itself?)
 
-initialize blank chess board
+# train.py is the main file to train the model
+#for one game:
+
+initialize blank chess board for new game
 
 coin flip decide black/white players
 
