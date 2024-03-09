@@ -1,1 +1,4 @@
-#Config for play.py and train.py
+#Config for training and playing model
+
+# Path to save model inside models folder
+model_path: "model.pth" 
