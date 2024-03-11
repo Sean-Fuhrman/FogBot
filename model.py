@@ -7,6 +7,5 @@
 #           - updates new positions as they are revealed
 
 
-#
 # Model Outputs:
 #  1 ) Next Move

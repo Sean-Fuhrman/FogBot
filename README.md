@@ -1,5 +1,14 @@
 # FogBot
 
+## Overall Strategy
+
+We have 2 bots, One that predicts the value of board states. Our method is based on predicting the most valuable next-board position and choosing an action based on that. 
+
+
+## TODOS:
+1. Create Board wrapper
+2. Create Train Loop
+
 ## How to run
 1. Make sure config.yaml contains proper configs
 2. Run training or playing:
