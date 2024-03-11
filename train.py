@@ -1,68 +1,108 @@
-initialize model 
-initialize opponent (either itself, other chess bot, past version of itself?)
+import numpy as np
 
-# train.py is the main file to train the model
-#for one game:
+import torch as torch 
+import torch.nn as nn
+import torch.nn.functional as F
+import board
+import model
 
-initialize blank chess board for new game
+import math
+import random
+import matplotlib
+import matplotlib.pyplot as plt
+from collections import namedtuple, deque
+from itertools import count
 
-coin flip decide black/white players
+import yaml
 
-inputs to model look like: (bit for black or white, known board, turn count, opponent's seen board)
-                            
-initiliaze opponent's seen board (piece, location, # turn seen, bit for captured or not)
+with open('config.yaml', 'r') as file:
+    config = yaml.safe_load(file)
 
-while both kings are present on the board:
+# BATCH_SIZE is the number of transitions sampled from the replay buffer
+# GAMMA is the discount factor as mentioned in the previous section
+# EPS_START is the starting value of epsilon
+# EPS_END is the final value of epsilon
+# EPS_DECAY controls the rate of exponential decay of epsilon, higher means a slower decay
+# TAU is the update rate of the target network
+# LR is the learning rate of the ``AdamW`` optimizer
+BATCH_SIZE = config['batch_size']
+GAMMA = config['gamma']
+EPS_START = config['eps_start']
+EPS_END = config['eps_end']
+EPS_DECAY = config['eps_decay']
+TAU = config['tau']
+LR = config['lr']
+MEMORY_SIZE = config['memory_size']
 
- Some stuff from Gemini to get started:
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Python
-# initialize DQN network (Q) and target network (Q_target)
-# initialize experience replay memory
-# initialize belief state
+Transition = namedtuple('Transition',
+                        ('state', 'action', 'next_state', 'reward'))
 
-# for episode in range(num_episodes):
-#     reset environment and get initial observation
-#     update belief state
 
-#     for step in range(max_steps_per_episode):
-#         # Epsilon-Greedy action selection
-#         if random.random() < epsilon: 
-#             action = random.choice(available_actions)
-#         else:
-#             action = argmax_a Q(observation, belief_state)
+class ReplayMemory(object):
 
-#         # Execute action, receive reward and next observation
-#         next_observation, reward, done, _ = environment.step(action) 
+    def __init__(self, capacity):
+        self.memory = deque([], maxlen=capacity)
 
-#         # Update belief state
-#         next_belief_state = update_belief(next_observation, belief_state)
+    def push(self, *args):
+        """Save a transition"""
+        self.memory.append(Transition(*args))
 
-#         # Store experience 
-#         memory.store((observation, belief_state, action, reward, next_observation, next_belief_state, done))
+    def sample(self, batch_size):
+        return random.sample(self.memory, batch_size)
 
-#         observation = next_observation
-#         belief_state = next_belief_state
+    def __len__(self):
+        return len(self.memory)
 
-#         # Sample a mini-batch from memory
-#         batch = memory.sample(batch_size)
+if config['load_model']:
+    model_fogBot = torch.load(config['model_path'])
+else:
+    model_fogBot = model.FogBot()
 
-#         # Calculate target Q-values (using the target network)
-#         target_q_values = calculate_target_q_values(batch, Q_target)
+def choose_action(model, state, device, epsilon):
+    if random.random() < epsilon:
+        return random.choice(board.get_possible_moves())
+    else:
+        with torch.no_grad():
+            return model(state).max(1)[1].view(1, 1).item()
+        
+def calculate_reward(game, current_player_color):
 
-#         # Train the DQN network on the mini-batch with target_q_values
-#         Q.train_on_batch(batch, target_q_values)
+def play_self_play_game(model, replay_buffer, device, epsilon=0.3):
+    game = board.CustomBoard()  # Initialize a chess game
+    current_player_color = game.current_turn
+    
+    while not game.is_game_over():
+        state = get_state_representation(game, current_player_color)
+        action = choose_action(model, state, device, epsilon) 
 
-#         # Update parameters of target network
-#         if step % target_update_freq == 0:
-#             Q_target.set_weights(Q.get_weights())
+        next_state = get_state_representation(game)
+        reward = calculate_reward(game) 
+        done = game.is_game_over()
 
-#     # Decay epsilon for exploration
-#     epsilon = update_epsilon(epsilon)
-# Use code with caution.
-# Important Notes:
+        replay_buffer.add_experience(state, action, next_state, reward, done) 
 
-# Hyperparameters: num_episodes, max_steps_per_episode, epsilon, target_update_freq, and your DQN architecture will require tuning.
-# calculate_target_q_values: This function will need to utilize the target network to compute TD targets (Q-values based on the next state).
-# update_epsilon: Handles exploration vs. exploitation decay.
-# Complexity: Imperfect information game mechanics and belief state representation are the major drivers of complexity.
+        current_player_color = not current_player_color  # Switch player
+        game.update_move(action)  #updates game
+
+
+def dqn_train_loop(model, target_model, replay_buffer, optimizer, gamma, device):
+    # ... (Model training mode, zero gradients, etc. as before) ...
+
+    for batch_idx, (state, action, next_state, reward, done) in enumerate(data_loader):
+        # ... (Compute target Q-values, current Q-values, loss) ...
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if batch_idx % target_update_freq == 0:
+            target_model.load_state_dict(model.state_dict())
+
+
+for epoch in range(num_epochs):
+    for _ in range(num_self_play_games):
+        play_self_play_game(model, replay_buffer, device) 
+
+    dqn_train_loop(model, target_model, replay_buffer, optimizer, gamma, device) 

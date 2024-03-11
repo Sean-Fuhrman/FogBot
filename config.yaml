@@ -2,3 +2,19 @@
 
 # Path to save model inside models folder
 model_path: "model.pth" 
+
+batch_size : 128 #the number of transitions sampled from the replay buffer
+
+gamme : 0.99 #discount factor
+
+eps_start : 0.9 #starting value of epsilon
+
+eps_end : 0.05 #final value of epsilon
+
+eps_decay : 1000 #decay rate of epsilon
+
+tau : 0.005 #update rate of the target network
+
+lr : 0.001 #learning rate
+
+load_model: False # Load model from model_path
