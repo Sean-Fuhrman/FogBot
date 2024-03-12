@@ -39,9 +39,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
-
 class ReplayMemory(object):
-
     def __init__(self, capacity):
         self.memory = deque([], maxlen=capacity)
 
@@ -67,21 +65,21 @@ def choose_action(model, state, device, epsilon):
         with torch.no_grad():
             return model(state).max(1)[1].view(1, 1).item()
         
-def calculate_reward(game, current_player_color):
 
 def play_self_play_game(model, replay_buffer, device, epsilon=0.3):
     game = board.CustomBoard()  # Initialize a chess game
     current_player_color = game.current_turn
     
     while not game.is_game_over():
-        state = get_state_representation(game, current_player_color)
+
+        state = game.get_state_representation()
         action = choose_action(model, state, device, epsilon) 
 
         next_state = get_state_representation(game)
-        reward = calculate_reward(game) 
+        reward = game.get_reward(action) 
         done = game.is_game_over()
 
-        replay_buffer.add_experience(state, action, next_state, reward, done) 
+        replay_buffer.push(state, action, next_state, reward, done) 
 
         current_player_color = not current_player_color  # Switch player
         game.update_move(action)  #updates game

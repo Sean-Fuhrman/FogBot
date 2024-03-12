@@ -1,31 +1,58 @@
 import chess
+import torch
 
 # Creat board
 
 class CustomBoard():
     def __init__(self) -> None:
         self.create_board()
+        self.initialize_vars()
 
     def create_board(self):
         self.board = chess.Board()
-        self.current_turn = "white" #possible values are "white" or "black"
+        self.current_turn = chess.WHITE
         self.turn_number = 0
 
+    def generate_state(self):
+        #empty, pawn, knight, bishop, rook, queen, king, is_owned , fog 
+        self.one_hot = torch.zeros(8,8,9)
+        for i in range(8):
+            for j in range(8):
+                piece = self.board.piece_at(chess.square(i,j))
+                color = self.board.color_at(chess.square(i,j))
+                fogged = self.is_square_fogged(chess.square(i,j))
+                if fogged:
+                    self.one_hot[i,j,8] = 1
+                elif piece:
+                    self.one_hot[i,j,piece.piece_type] = 1
+                else:
+                    self.one_hot[i,j,0] = 1
+                if color == self.current_turn:
+                    self.one_hot[i,j,7] = 1
 
-    def get_possible_moves(self): #TODO 
-        return self.board.pseudo_legal_moves #DOUBLE CHECK THIS RETURNS PROPER FOG of WAR CHESS legal moves
+        self.opponent_memory = torch.zeros(8,8, 6) #starts out at zero, will be updated as game progresses
+        self.state = torch.cat((self.one_hot, self.opponent_memory), dim=2)
+        self.state = torch.cat((self.state.flatten(), torch.tensor([self.turn_number]), torch.tensor([self.current_turn])), dim=0)
+
+    def is_square_fogged(self, square):
+        if square in [x.to_square for x in self.board.pseudo_legal_moves]:
+            return False
+        elif self.board.color_at(square) == self.current_turn:
+            return False
+        else:
+            return True
+
+    def get_possible_moves(self): 
+        return self.board.pseudo_legal_moves
     
     def is_game_over(self): #TODO
-        return self.board.is_game_over() # Check if both kings are present on board
+        return  # Check if both kings are present on board
 
-    def update_move(self, move): #TODO: Update board representation with mvoes 
+    def update_move(self, move):
         self.turn_number += 1
         self.current_turn = "white" if self.current_turn == "black" else "black"
+        self.board.push(move)
+        self.initialize_vars()
 
-        #move is output of model
-
-    def get_board_state(self): #TODO: return board as embedding
-        pass
-
-    def get_next_move_states(self); #TODO: return all next move state embeddings.
-        pass
+    def get_board_state(self):
+        return self.state
