@@ -6,7 +6,7 @@ import torch
 class CustomBoard():
     def __init__(self) -> None:
         self.create_board()
-        self.initialize_vars()
+        self.generate_state()
 
     def create_board(self):
         self.board = chess.Board()
@@ -30,8 +30,7 @@ class CustomBoard():
                 if color == self.current_turn:
                     self.one_hot[i,j,7] = 1
 
-        self.opponent_memory = torch.zeros(8,8, 6) #starts out at zero, will be updated as game progresses
-        self.state = torch.cat((self.one_hot, self.opponent_memory), dim=2)
+        self.state = self.one_hot
         self.state = torch.cat((self.state.flatten(), torch.tensor([self.turn_number]), torch.tensor([self.current_turn])), dim=0)
 
     def is_square_fogged(self, square):
@@ -45,14 +44,20 @@ class CustomBoard():
     def get_possible_moves(self): 
         return self.board.pseudo_legal_moves
     
-    def is_game_over(self): #TODO
-        return  # Check if both kings are present on board
+    def is_game_over(self):
+        if self.board.king(chess.WHITE) == None or self.board.king(chess.BLACK) == None:
+            return True
+        return False
 
     def update_move(self, move):
-        self.turn_number += 1
+        if(self.current_turn == chess.BLACK):
+            self.turn_number += 1
+            self.current_turn = chess.WHITE
+        else:
+            self.current_turn = chess.BLACK
         self.current_turn = "white" if self.current_turn == "black" else "black"
         self.board.push(move)
-        self.initialize_vars()
+        self.generate_state()
 
     def get_board_state(self):
         return self.state

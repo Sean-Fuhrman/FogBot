@@ -59,24 +59,28 @@ else:
     model_fogBot = model.FogBot()
 
 def choose_action(model, state, device, epsilon):
+    values, boards = model(state)
     if random.random() < epsilon:
-        return random.choice(board.get_possible_moves())
+        idx = random.randint(0, len(values) - 1)
+        return values[idx].argmax().item(), boards[idx]
     else:
         with torch.no_grad():
-            return model(state).max(1)[1].view(1, 1).item()
-        
+            choice = torch.cat(values).argmax().item()
+            return choice, boards[choice]
+
+def get_reward(game, next_board, current_player_color): #TODO:
+    return 0  
 
 def play_self_play_game(model, replay_buffer, device, epsilon=0.3):
     game = board.CustomBoard()  # Initialize a chess game
     current_player_color = game.current_turn
     
     while not game.is_game_over():
-
-        state = game.get_state_representation()
-        action = choose_action(model, state, device, epsilon) 
-
-        next_state = get_state_representation(game)
-        reward = game.get_reward(action) 
+        state = game.state.to(device)
+        action, next_board = choose_action(model, state, device, epsilon) 
+        next_state = next_board.state.to(device)
+        reward = get_reward(game, next_board, current_player_color)
+        
         done = game.is_game_over()
 
         replay_buffer.push(state, action, next_state, reward, done) 

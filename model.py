@@ -22,10 +22,12 @@ class DQN(nn.Module):
 
     def forward(self, board):
         values = []
+        boards = []
         for move in board.get_possible_moves():
             board_copy = board.copy()
             board_copy.update_move(move)
             state = board_copy.get_board_state()
+            boards.append(board_copy)
             value = self.predict_val(state)
             values.append(value)
-        return torch.tensor(values)
+        return values, boards
