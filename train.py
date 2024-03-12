@@ -34,6 +34,13 @@ TAU = config['tau']
 LR = config['lr']
 MEMORY_SIZE = config['memory_size']
 
+## STORES VALUE OF DIFFERENT PIECES ON BOARD
+PAWN_VAL = 1
+ROOK_VAL = 5
+KNIGHT_VAL = 7
+BISHOP_VAL = 3
+QUEEN_VAL = 9
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 Transition = namedtuple('Transition',
@@ -58,6 +65,9 @@ if config['load_model']:
 else:
     model_fogBot = model.FogBot()
 
+## use epsilon greedy algorithm to decide our next state
+## with probability epsilon take a random action (this enduces exploration)
+## else take action to jump to state with highest estimated value
 def choose_action(model, state, device, epsilon):
     values, boards = model(state)
     if random.random() < epsilon:
@@ -68,8 +78,67 @@ def choose_action(model, state, device, epsilon):
             choice = torch.cat(values).argmax().item()
             return choice, boards[choice]
 
+## reward of every board is a summation of all of player's pieces subtracted by 
+## the pieces of the enemies with the following weights assigned to each piece
+## pawn - 1
+## knight - 7
+## Bishop - 3 
+## rook - 5
+## queen - 9 
+## the king has no value as once the king is gone we have reached a game over
+## and reward of the state will be either 100, or -100 depending on if victory 
+## or defeat has been reached 
 def get_reward(game, next_board, current_player_color): #TODO:
-    return 0  
+    white_val = 0 ## stores value of state for white player
+    black_val = 0 ## stores value of state for black player
+    white_king_seen = False 
+    black_king_seen = False
+    board_notation = next_board.board_fen() ## grabs the FEN notation string 
+    ##  calculate value of board for both players
+    for char in board_notation:
+        if char == 'k':
+            black_king_seen = True
+        elif char == 'K':
+            white_king_seen = True
+        elif char == 'Q':
+            white_val += QUEEN_VAL
+        elif char == 'q':
+            black_val += QUEEN_VAL
+        elif char == 'R':
+            white_val += ROOK_VAL
+        elif char == 'r':
+            black_val += ROOK_VAL
+        elif char == 'B':
+            white_val += BISHOP_VAL
+        elif char == 'b':
+            black_val += BISHOP_VAL
+        elif char == 'N':
+            white_val += KNIGHT_VAL
+        elif char == 'n':
+            black_val += KNIGHT_VAL
+        elif char == 'P':
+            white_val += PAWN_VAL
+        elif char == 'p':
+            black_val += PAWN_VAL
+    
+    ## if either player is missing king hardcode reward
+    if(not black_king_seen):
+        if(current_player_color == next_board.WHITE):
+            return 100
+        else:
+            return -100
+    if(not white_king_seen):
+        if(current_player_color == next_board.BLACK):
+            return 100
+        else:
+            return -100
+    ## return appropriate reward for player 
+    if(current_player_color == next_board.WHITE):
+        return white_val - black_val
+    else:
+        return black_val - white_val
+            
+    
 
 def play_self_play_game(model, replay_buffer, device, epsilon=0.3):
     game = board.CustomBoard()  # Initialize a chess game
