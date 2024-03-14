@@ -9,17 +9,21 @@ import os
 import time
 import events 
 import threading
+import chess
+import board
 import asyncio
 import queue
 
 
 ## GLOBAL VARIABLES
 IMG_DIR = 'chess_pieces/'
-WIDTH, HEIGHT = 1024, 1024
-PIECE_WIDTH, PIECE_HEIGHT = 64,64
+WIDTH, HEIGHT = 512, 512
+PIECE_WIDTH, PIECE_HEIGHT = 32,32
 TILE_WIDTH = WIDTH / 8
 TILE_HEIGHT = HEIGHT / 8
 PIECE_SIZE = (PIECE_WIDTH, PIECE_HEIGHT)
+FOGGED = False
+TILES_PER_ROW, TOTAL_ROWS = 8,8
 ## COLORS
 GREY = (128, 128, 128)
 RED = (255, 0, 0)
@@ -41,7 +45,7 @@ class Window():
     global KILL_BOARD ## stores whether or not background thread should continue running
     
     
-    def __init__ (self):
+    def __init__ (self, fog):
         global BACKGROUND_THREAD 
         global KILL_BOARD
         BACKGROUND_THREAD = None
@@ -50,16 +54,16 @@ class Window():
 
     def update_board(self, board_info):
         self.draw_base_board() ## constructs a basic chessboard 
+        FOGGED = fog
         
     ## draws a basic black and white chess board on a 1024/1024 plane
     def draw_base_board(self):
         SCREEN.fill(GREEN) ## clear the screen 
-        tiles_per_row = 8
-        total_rows = 8
+
         
-        for tile_num in range (tiles_per_row * total_rows):
-            tile_row = tile_num % tiles_per_row
-            tile_column = tile_num // total_rows 
+        for tile_num in range (TILES_PER_ROW * TOTAL_ROWS):
+            tile_row = tile_num % TILES_PER_ROW
+            tile_column = tile_num // TOTAL_ROWS 
             if(tile_row % 2 == 0):
                 if(tile_column % 2 == 0):
                     tile_color = BEIGE
@@ -145,12 +149,24 @@ class Window():
         ## place piece
         SCREEN.blit(piece, piece_location)
         pygame.display.flip()
+        
+    def draw_fog(self, chess_board):
+        for tile_num in range(64):
+            tile_row = tile_num % TILES_PER_ROW
+            tile_column = tile_num // TOTAL_ROWS
+            if (chess_board.is_square_fogged(chess.square(tile_row, tile_column))):
+                 fog = pygame.Rect(tile_row * TILE_WIDTH, tile_column * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
+                 pygame.draw.rect(SCREEN, GREY, fog)
     
     ## generates a board, starts a background thread and displays the board to user given that thread 
-    def display_board(self, FEN_NOTATION):
+    def display_board(self, FEN_NOTATION, chess_board):
+        print("FOGGED ", FOGGED)
         self.wipe_board()
         self.draw_base_board()
         self.draw_pieces(FEN_NOTATION)
+        if(FOGGED):
+            print("DRAWING FOG")
+            self.draw_fog(chess_board)
         global BACKGROUND_THREAD
         BACKGROUND_THREAD = threading.Thread(target=self.board_loop)
         BACKGROUND_THREAD.start()
@@ -192,7 +208,7 @@ class Window():
     ## TODO - convert from text based movement to click and drag  
     def prompt_user_move(self):
         print("please provide your move in chess notation")
-        return input("what move would you like to make?")
+        return input("what move would you like to make? ")
       
     ## TODO - make graphical instead of text based
     def error_invalid_move(self):
