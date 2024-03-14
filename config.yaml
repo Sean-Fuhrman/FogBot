@@ -1,7 +1,7 @@
 #Config for training and playing model
 
 # Path to save model inside models folder
-model_path: "model.pth" 
+model_path: "model_real.pth" 
 
 batch_size : 128 #the number of transitions sampled from the replay buffer
 
