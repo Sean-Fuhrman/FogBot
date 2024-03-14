@@ -19,7 +19,7 @@ steps_done = 0
 
 
 Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'board', 'next_board', 'reward', 'done'))
+                        ('state', 'action', 'next_state', 'mask', 'next_mask','reward', 'not_done'))
 
 class ReplayMemory(object):
     def __init__(self, capacity):
@@ -34,27 +34,37 @@ class ReplayMemory(object):
 
     def __len__(self):
         return len(self.memory)
+    
+def get_legal_move_mask(game):
+    mask = torch.zeros(64*64)
+    valid_moves = game.get_possible_moves()
+    for move in valid_moves:
+        from_square = move.from_square
+        to_square = move.to_square
+        mask[from_square*64 + to_square] = 1
 
+    return mask.bool()
+def convert_action_to_move(action):
+    return chess.Move(from_square=action//64, to_square=action%64)
 ## use epsilon greedy algorithm to decide our next state
 ## with probability epsilon take a random action (this enduces exploration)
 ## else take action to jump to state with highest estimated value
-def choose_action(model, game, device, epsilon):
+def choose_action(model, state,game, device,config):
     with torch.no_grad():
         global steps_done
-        values, boards = model(game)
 
         epsilon_start = config['eps_start']
         epsilon_end = config['eps_end']
         epsilon_decay = config['eps_decay']
         epsilon = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1. * steps_done / epsilon_decay)
         steps_done += 1
-
+        values = model(state)
+        mask = get_legal_move_mask(game)
+        values[~mask] = -float('inf') # Set illegal moves to -inf so they are not chosen
         if random.random() < epsilon:
-            idx = random.randint(0, len(values) - 1)
-            return idx, boards[idx]
+            return torch.tensor([random.choice(mask.nonzero(as_tuple=True)[0])]), mask
         else:
-            choice = torch.cat(values).argmax().item()
-            return choice, boards[choice]
+            return torch.tensor([values.argmax()]), mask
 
 
 def get_white_score(game):
@@ -104,21 +114,27 @@ def get_reward(game, next_board, current_player_color): #TODO:
     else:
         return prev_val - next_val
 
-
 def train_loop(policy_net, target_net, replay_buffer, config, device):
     game = board.CustomBoard(device)  # Initialize a chess game
     current_player_color = game.current_turn
-
+    losses = []
     while not game.is_game_over():
         state = game.get_board_state().to(device)
-        action, next_board = choose_action(policy_net, game, device, config) 
+        action, mask = choose_action(policy_net,state, game, device, config) 
+        
+        next_board = game.copy()
+        next_board.board.push(convert_action_to_move(action))
         next_state = next_board.get_board_state().to(device)
-        reward = get_reward(game, next_board, current_player_color)
+
+        reward = torch.tensor([get_reward(game, next_board, current_player_color)])
         done = game.is_game_over()
 
-        replay_buffer.push(state, torch.tensor([action]), next_state, game.board_to_string(), next_board.board_to_string(), torch.tensor([reward]), done) 
-        optimize_model(policy_net, target_net, replay_buffer, optimizer, config, device)  # Optimize the model
+        next_mask = get_legal_move_mask(next_board)
 
+        replay_buffer.push(state, action, next_state,mask, next_mask, reward, not done) 
+        loss = optimize_model(policy_net, target_net, replay_buffer, optimizer, config, device)  # Optimize the model
+        if loss != -1:
+            losses.append(loss)
         current_player_color = not current_player_color  # Switch player
         game = next_board  # Update the game state
 
@@ -130,13 +146,14 @@ def train_loop(policy_net, target_net, replay_buffer, config, device):
         for key in policy_net_state_dict:
             target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
         target_net.load_state_dict(target_net_state_dict)
+    return torch.mean(torch.tensor(losses)).item()
 
 #gotten from https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
 def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, device):
     BATCH_SIZE = config['batch_size']
     GAMMA = config['gamma']
     if len(replay_buffer) < config['batch_size']:
-        return
+        return -1
 
     transitions = replay_buffer.sample(config['batch_size'])
     batch = Transition(*zip(*transitions))
@@ -144,20 +161,18 @@ def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, dev
 
     # Compute a mask of non-final states and concatenate the batch elements
     # (a final state would've been the one after which simulation ended)
-    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
-                                          batch.done)), device=device, dtype=torch.bool)
-    action_batch = torch.cat(batch.action)
-    reward_batch = torch.cat(batch.reward)
+    non_final_mask = torch.tensor(batch.not_done).to(device)
+    non_final_next_states = torch.stack(batch.next_state)[non_final_mask].to(device)
+    mask_batch = torch.stack(batch.mask).to(device)
+    next_mask_batch = torch.stack(batch.next_mask).to(device)
+    state_batch = torch.stack(batch.state).to(device)
+    action_batch = torch.cat(batch.action).to(device)
+    reward_batch = torch.cat(batch.reward).to(device)
 
     # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
     # columns of actions taken. These are the actions which would've been taken
     # for each batch state according to policy_net
-    state_action_values = []
-    for i in range(len(batch.state)):
-        game_string = batch.board[i]
-        vals, boards = policy_net(game_string) # has grad
-        state_action_values.append(vals[batch.action[i]])
-    state_action_values = torch.tensor(state_action_values) # losses grad
+    state_action_values =torch.gather(policy_net(state_batch), dim=1, index=action_batch.unsqueeze(1))
 
     # Compute V(s_{t+1}) for all next states.
     # Expected values of actions for non_final_next_states are computed based
@@ -166,34 +181,28 @@ def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, dev
     # state value or 0 in case the state was final.
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
     with torch.no_grad():
-        temp = []
-        for i in range(len(batch.next_state)):
-            if batch.done[i]:
-                continue
-            game_string = batch.next_board[i]
-
-            vals, boards = policy_net(game_string)
-            temp.append(max(vals))
-        next_state_values[non_final_mask] = torch.tensor(temp).to(device)
+        next_state_values[non_final_mask] = (target_net(non_final_next_states) * next_mask_batch.int()).max(1).values
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
     # Compute Huber loss
     criterion = nn.SmoothL1Loss()
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
-    print("Loss: ", loss.item())
-    print("Step: ", steps_done)
     # Optimize the model
     optimizer.zero_grad()
     loss.backward()
     # In-place gradient clipping
     torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
     optimizer.step()
-
+    return loss.item()
 if __name__ == "__main__":
     config = None
     device = "cpu"
-
+    if torch.cuda.is_available():
+        device = "cuda"
+    if torch.backends.mps.is_available():
+        device = "mps"
+        
     with open('config.yaml', 'r') as file:
         config = yaml.safe_load(file)
 
@@ -212,10 +221,10 @@ if __name__ == "__main__":
     for game_index in range(num_games):
         print(f"Starting game {game_index}")
         time_start = time.time()
-        train_loop(policy_net, target_net, replay_buffer, config, device) 
+        avg_loss = train_loop(policy_net, target_net, replay_buffer, config, device) 
         time_end = time.time()
-        print(f"Game {game_index} over, took {time_end - time_start} seconds.")
-        if game_index % 100 == 0:
+        print(f"Game {game_index} over, with average loss {avg_loss}, took {time_end - time_start} seconds.")
+        if game_index % 10 == 0:
             torch.save(policy_net, config['model_path'])
             print("Model saved")
 
