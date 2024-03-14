@@ -5,7 +5,9 @@ model_path: "model.pth"
 
 batch_size : 128 #the number of transitions sampled from the replay buffer
 
-gamme : 0.99 #discount factor
+gamma : 0.99 #discount factor
+
+num_games : 1000 #number of games to play
 
 eps_start : 0.9 #starting value of epsilon
 
@@ -16,5 +18,7 @@ eps_decay : 1000 #decay rate of epsilon
 tau : 0.005 #update rate of the target network
 
 lr : 0.001 #learning rate
+
+replay_buffer_size : 100000 #size of the replay buffer
 
 load_model: False # Load model from model_path
