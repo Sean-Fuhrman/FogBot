@@ -195,6 +195,8 @@ def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, dev
     torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
     optimizer.step()
     return loss.item()
+
+
 if __name__ == "__main__":
     config = None
     device = "cpu"

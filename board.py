@@ -66,7 +66,11 @@ class CustomBoard():
             self.current_turn = chess.WHITE
         else:
             self.current_turn = chess.BLACK
-        self.board.push(move)
+        #self.board.push(move)
+        if type(move) == str:
+            self.board.push_san(move)
+        else:
+            self.board.push(move)
         self.generate_state()
 
     def get_board_state(self):
