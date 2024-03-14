@@ -227,6 +227,6 @@ if __name__ == "__main__":
         time_end = time.time()
         print(f"Game {game_index} over, with average loss {avg_loss}, took {time_end - time_start} seconds.")
         if game_index % 10 == 0:
-            torch.save(policy_net, config['model_path'])
+            torch.save(policy_net, "model/" + config['model_path'])
             print("Model saved")
 
