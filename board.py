@@ -28,10 +28,11 @@ class CustomBoard():
                     self.one_hot[i,j,8] = 1
                 elif piece:
                     self.one_hot[i,j,piece.piece_type] = 1
+                    if color == self.current_turn:
+                        self.one_hot[i,j,7] = 1
                 else:
                     self.one_hot[i,j,0] = 1
-                if color == self.current_turn:
-                    self.one_hot[i,j,7] = 1
+            
 
         self.state = self.one_hot
         self.state = torch.cat((self.state.flatten(), torch.tensor([self.turn_number]), torch.tensor([self.current_turn])), dim=0)
