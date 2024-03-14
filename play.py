@@ -20,7 +20,7 @@ def main():
     user_color = grab_color(game_window, chess_board) ## grab color of player
     while(not chess_board.is_game_over()): ## while game is ongoing grab user and computer moves and display them to user 
         game_window.update_board(chess_board.board.board_fen())
-        if(chess_board.board.Turn == user_color):
+        if(chess_board.current_turn == user_color):
             prompt_user_move(chess_board.get_possible_moves)
         else: ## TODO add way for computer to play 
             pass
