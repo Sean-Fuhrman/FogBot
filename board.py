@@ -1,10 +1,11 @@
 import chess
 import torch
-
+import copy
 # Creat board
 
 class CustomBoard():
-    def __init__(self) -> None:
+    def __init__(self, device) -> None:
+        self.device = device
         self.create_board()
         self.generate_state()
 
@@ -55,9 +56,11 @@ class CustomBoard():
             self.current_turn = chess.WHITE
         else:
             self.current_turn = chess.BLACK
-        self.current_turn = "white" if self.current_turn == "black" else "black"
         self.board.push(move)
         self.generate_state()
 
     def get_board_state(self):
-        return self.state
+        return self.state.to(self.device)
+
+    def copy(self):
+        return copy.deepcopy(self)

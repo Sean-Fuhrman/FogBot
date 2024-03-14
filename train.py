@@ -5,46 +5,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 import board
 import model
-
+import chess
 import math
 import random
-import matplotlib
-import matplotlib.pyplot as plt
+import time
+
 from collections import namedtuple, deque
 from itertools import count
 
 import yaml
 
-with open('config.yaml', 'r') as file:
-    config = yaml.safe_load(file)
+steps_done = 0
 
-# BATCH_SIZE is the number of transitions sampled from the replay buffer
-# GAMMA is the discount factor as mentioned in the previous section
-# EPS_START is the starting value of epsilon
-# EPS_END is the final value of epsilon
-# EPS_DECAY controls the rate of exponential decay of epsilon, higher means a slower decay
-# TAU is the update rate of the target network
-# LR is the learning rate of the ``AdamW`` optimizer
-BATCH_SIZE = config['batch_size']
-GAMMA = config['gamma']
-EPS_START = config['eps_start']
-EPS_END = config['eps_end']
-EPS_DECAY = config['eps_decay']
-TAU = config['tau']
-LR = config['lr']
-MEMORY_SIZE = config['memory_size']
-
-## STORES VALUE OF DIFFERENT PIECES ON BOARD
-PAWN_VAL = 1
-ROOK_VAL = 5
-KNIGHT_VAL = 7
-BISHOP_VAL = 3
-QUEEN_VAL = 9
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward'))
+                        ('state', 'action', 'next_state', 'reward', 'done'))
 
 class ReplayMemory(object):
     def __init__(self, capacity):
@@ -60,120 +35,183 @@ class ReplayMemory(object):
     def __len__(self):
         return len(self.memory)
 
-if config['load_model']:
-    model_fogBot = torch.load(config['model_path'])
-else:
-    model_fogBot = model.FogBot()
-
 ## use epsilon greedy algorithm to decide our next state
 ## with probability epsilon take a random action (this enduces exploration)
 ## else take action to jump to state with highest estimated value
-def choose_action(model, state, device, epsilon):
-    values, boards = model(state)
-    if random.random() < epsilon:
-        idx = random.randint(0, len(values) - 1)
-        return values[idx].argmax().item(), boards[idx]
-    else:
-        with torch.no_grad():
+def choose_action(model, game, device, epsilon):
+    with torch.no_grad():
+        global steps_done
+        values, boards = model(game)
+
+        epsilon_start = config['eps_start']
+        epsilon_end = config['eps_end']
+        epsilon_decay = config['eps_decay']
+        epsilon = epsilon_end + (epsilon_start - epsilon_end) * math.exp(-1. * steps_done / epsilon_decay)
+        steps_done += 1
+
+        if random.random() < epsilon:
+            idx = random.randint(0, len(values) - 1)
+            return values[idx].argmax().item(), boards[idx]
+        else:
             choice = torch.cat(values).argmax().item()
             return choice, boards[choice]
 
-## reward of every board is a summation of all of player's pieces subtracted by 
-## the pieces of the enemies with the following weights assigned to each piece
-## pawn - 1
-## knight - 7
-## Bishop - 3 
-## rook - 5
-## queen - 9 
-## the king has no value as once the king is gone we have reached a game over
-## and reward of the state will be either 100, or -100 depending on if victory 
-## or defeat has been reached 
-def get_reward(game, next_board, current_player_color): #TODO:
+
+def get_white_score(game):
+    piece_values = {
+        chess.PAWN: 1,
+        chess.KNIGHT: 3,
+        chess.BISHOP: 3,
+        chess.ROOK: 5,
+        chess.QUEEN: 9,
+        chess.KING: 0  # King's value is often excluded here
+    }
+
     white_val = 0 ## stores value of state for white player
     black_val = 0 ## stores value of state for black player
-    white_king_seen = False 
-    black_king_seen = False
-    board_notation = next_board.board_fen() ## grabs the FEN notation string 
-    ##  calculate value of board for both players
-    for char in board_notation:
-        if char == 'k':
-            black_king_seen = True
-        elif char == 'K':
-            white_king_seen = True
-        elif char == 'Q':
-            white_val += QUEEN_VAL
-        elif char == 'q':
-            black_val += QUEEN_VAL
-        elif char == 'R':
-            white_val += ROOK_VAL
-        elif char == 'r':
-            black_val += ROOK_VAL
-        elif char == 'B':
-            white_val += BISHOP_VAL
-        elif char == 'b':
-            black_val += BISHOP_VAL
-        elif char == 'N':
-            white_val += KNIGHT_VAL
-        elif char == 'n':
-            black_val += KNIGHT_VAL
-        elif char == 'P':
-            white_val += PAWN_VAL
-        elif char == 'p':
-            black_val += PAWN_VAL
+
+    for square in chess.SQUARES:
+        piece = game.board.piece_at(square)
+        if piece and piece.color == chess.WHITE:
+            if piece.piece_type == chess.KING:
+                white_val += piece_values[piece.piece_type]
+        elif piece and piece.color == chess.BLACK:
+            if piece.piece_type == chess.KING:
+                black_val += piece_values[piece.piece_type]
+
+    return white_val - black_val
+
+def get_reward(game, next_board, current_player_color): #TODO:
+    white_king_seen = next_board.board.king(chess.WHITE) != None
+    black_king_seen = next_board.board.king(chess.BLACK) != None
     
-    ## if either player is missing king hardcode reward
+    ## if either player king is missing king hardcode reward
     if(not black_king_seen):
-        if(current_player_color == next_board.WHITE):
+        if(current_player_color == chess.WHITE):
             return 100
         else:
             return -100
     if(not white_king_seen):
-        if(current_player_color == next_board.BLACK):
+        if(current_player_color == chess.BLACK):
             return 100
         else:
-            return -100
-    ## return appropriate reward for player 
-    if(current_player_color == next_board.WHITE):
-        return white_val - black_val
+            return -100 
+    
+    prev_val = get_white_score(game)
+    next_val = get_white_score(next_board)
+    if(current_player_color == chess.WHITE):
+        return next_val - prev_val
     else:
-        return black_val - white_val
-            
-    
+        return prev_val - next_val
 
-def play_self_play_game(model, replay_buffer, device, epsilon=0.3):
-    game = board.CustomBoard()  # Initialize a chess game
+
+def train_loop(policy_net, target_net, replay_buffer, config, device):
+    game = board.CustomBoard(device)  # Initialize a chess game
     current_player_color = game.current_turn
-    
+
     while not game.is_game_over():
-        state = game.state.to(device)
-        action, next_board = choose_action(model, state, device, epsilon) 
-        next_state = next_board.state.to(device)
+        state = game.get_board_state().to(device)
+        action, next_board = choose_action(policy_net, game, device, config) 
+        next_state = next_board.get_board_state().to(device)
         reward = get_reward(game, next_board, current_player_color)
-        
         done = game.is_game_over()
 
-        replay_buffer.push(state, action, next_state, reward, done) 
+        replay_buffer.push(state, torch.tensor(action), next_state, torch.tensor(reward), done) 
+        optimize_model(policy_net, target_net, replay_buffer, optimizer, config, device)  # Optimize the model
 
         current_player_color = not current_player_color  # Switch player
-        game.update_move(action)  #updates game
+        game = next_board  # Update the game state
+
+        # Soft update of the target network's weights
+        # θ′ ← τ θ + (1 −τ )θ′
+        TAU = config['tau']
+        target_net_state_dict = target_net.state_dict()
+        policy_net_state_dict = policy_net.state_dict()
+        for key in policy_net_state_dict:
+            target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
+        target_net.load_state_dict(target_net_state_dict)
+
+#gotten from https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
+def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, device):
+    BATCH_SIZE = config['batch_size']
+    GAMMA = config['gamma']
+    if len(replay_buffer) < config['batch_size']:
+        return
+
+    transitions = replay_buffer.sample(config['batch_size'])
+    batch = Transition(*zip(*transitions))
 
 
-def dqn_train_loop(model, target_model, replay_buffer, optimizer, gamma, device):
-    # ... (Model training mode, zero gradients, etc. as before) ...
+    # Compute a mask of non-final states and concatenate the batch elements
+    # (a final state would've been the one after which simulation ended)
+    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
+                                          batch.done)), device=device, dtype=torch.bool)
+    non_final_next_states = torch.cat([s for s in batch.next_state
+                                                if s is not None])
+    print(batch.state[0].shape)
+    print(len(batch.state))
+    state_batch = torch.cat(batch.state)
+    action_batch = torch.cat(batch.action)
+    reward_batch = torch.cat(batch.reward)
 
-    for batch_idx, (state, action, next_state, reward, done) in enumerate(data_loader):
-        # ... (Compute target Q-values, current Q-values, loss) ...
+    # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
+    # columns of actions taken. These are the actions which would've been taken
+    # for each batch state according to policy_net
+    state_action_values = policy_net(state_batch).gather(1, action_batch)
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+    # Compute V(s_{t+1}) for all next states.
+    # Expected values of actions for non_final_next_states are computed based
+    # on the "older" target_net; selecting their best reward with max(1).values
+    # This is merged based on the mask, such that we'll have either the expected
+    # state value or 0 in case the state was final.
+    next_state_values = torch.zeros(BATCH_SIZE, device=device)
+    with torch.no_grad():
+        next_state_values[non_final_mask] = target_net(non_final_next_states).max(1).values
+    # Compute the expected Q values
+    expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
-        if batch_idx % target_update_freq == 0:
-            target_model.load_state_dict(model.state_dict())
+    # Compute Huber loss
+    criterion = nn.SmoothL1Loss()
+    loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
+    print("Loss: ", loss.item())
+    print("Step: ", steps_done)
+    # Optimize the model
+    optimizer.zero_grad()
+    loss.backward()
+    # In-place gradient clipping
+    torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
+    optimizer.step()
+
+if __name__ == "__main__":
+    config = None
+    device = "cpu"
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+
+    with open('config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+
+    num_games = config['num_games']
+    replay_buffer = ReplayMemory(config['replay_buffer_size'])
+    policy_net = model.DQN()
+    if config['load_model']:
+        policy_net = torch.load(config['model_path'])
+    policy_net = policy_net.to(device)
+    target_net = model.DQN().to(device)
+    target_net.load_state_dict(policy_net.state_dict())
+
+    optimizer = torch.optim.Adam(policy_net.parameters(), lr=config['lr'])
 
 
-for epoch in range(num_epochs):
-    for _ in range(num_self_play_games):
-        play_self_play_game(model, replay_buffer, device) 
+    for game_index in range(num_games):
+        print(f"Starting game {game_index}")
+        time_start = time.time()
+        train_loop(policy_net, target_net, replay_buffer, config, device) 
+        time_end = time.time()
+        print(f"Game {game_index} over, took {time_end - time_start} seconds.")
+        if game_index % 100 == 0:
+            torch.save(policy_net, config['model_path'])
+            print("Model saved")
 
-    dqn_train_loop(model, target_model, replay_buffer, optimizer, gamma, device) 

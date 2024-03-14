@@ -1,7 +1,8 @@
 #%%
 import board
-
+import chess
 new_board = board.CustomBoard()
 
-print(new_board.state)
+new_board.board
 # %%
+print(new_board.evaluate_relative_to(chess.WHITE))
