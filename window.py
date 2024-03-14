@@ -47,7 +47,7 @@ class Window():
         KILL_BOARD = False
           
     def update_board(self, board_info):
-        self.draw_base_board(self) ## constructs a basic chessboard 
+        self.draw_base_board() ## constructs a basic chessboard 
         
     ## draws a basic black and white chess board on a 1024/1024 plane
     def draw_base_board(self):

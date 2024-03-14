@@ -3,12 +3,12 @@ import torch
 import yaml
 import window
 import board 
+import chess
 
 
-## CONSTANTS
+## GLOBALS
 with open('config.yaml', 'r') as file:
     CONFIG = yaml.safe_load(file) # CONFIG stores important system configurations
-
 
 
 
@@ -38,11 +38,10 @@ def grab_color(game_window, chess_board):
     game_window.user_introduction() ## welcome user 
     is_user_white = game_window.get_user_color() ## stores if user is playing as white or not
     if(is_user_white):
-        player_color = chess_board.board.WHITE
+        player_color = chess.WHITE
     else:
-        player_color = chess_board.board.BLACK
+        player_color = chess.BLACK
     print(player_color)
-    
     
 def prompt_user_move(game_window, chess_board):
     while True:
@@ -51,8 +50,6 @@ def prompt_user_move(game_window, chess_board):
             return chess_move
         else:
             game_window.error_invalid_move()
-    
-    
     
     
     
