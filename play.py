@@ -16,7 +16,7 @@ with open('config.yaml', 'r') as file:
 ## TODO add fogged variation of chess 
 def main():
     ## SET UP VARIABLES FOR MAIN PLAYING LOOP
-    model_fogBot = torch.load(CONFIG['model_path']) ## stores model of bot we are playing against
+    model_fogBot = torch.load("models/"+ CONFIG['model_path']) ## stores model of bot we are playing against
     chess_board = board.CustomBoard("cpu") ## initializes the game board
     game_window = window.Window()
     user_color = grab_color(game_window, chess_board) ## grab color of player
