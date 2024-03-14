@@ -37,12 +37,14 @@ pygame.display.set_caption("fogbot chess match ")
 
 class Window():
     global BACKGROUND_THREAD ## declare BACKGROUND_THREAD as a global so it can be modified 
-    ## GIVEN: path to png file containing new board to update too
-    ## OUTCOME: Screen is modified to display new board
+    global KILL_BOARD ## stores whether or not background thread should continue running
+    
     
     def __init__ (self):
         global BACKGROUND_THREAD 
+        global KILL_BOARD
         BACKGROUND_THREAD = None
+        KILL_BOARD = False
           
     def update_board(self, board_info):
         self.draw_base_board() ## constructs a basic chessboard 
@@ -153,7 +155,8 @@ class Window():
 
     ## METHOD SHOULD ONLY BE CALLED ON A BACKGROUND THREAD - ELSE JUST LOOPS INFINETLY!
     def board_loop(self): 
-        while True:
+        global KILL_BOARD
+        while KILL_BOARD is not True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -165,8 +168,7 @@ class Window():
         global BACKGROUND_THREAD
         if BACKGROUND_THREAD is not None: ## if background thread already destroyed just wipe
             ## Destory thread
-            BACKGROUND_THREAD.stop()
-            BACKGROUND_THREAD.join()
+            BACKGROUND_THREAD.KILL_BOARD = True
             BACKGROUND_THREAD = None
         
         ## wipe board
@@ -189,12 +191,20 @@ class Window():
                 return True
             if(user_choice == 'b'):
                 return False
-    ## TODO - add a way for users to move pieces    
+    ## TODO - convert from text based movement to click and drag  
     def prompt_user_move(self):
-        pass
+        print("please provide your move in chess notation")
+        return input("what move would you like to make?")
+      
     ## TODO - make graphical instead of text based
+    def error_invalid_move(self):
+        print("ERROR you can not make that move, it is either illegal or not in chess notation!")
+    
+    
     def close_game(self):
         pygame.quit()
+        
+    
         
 
 

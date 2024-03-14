@@ -78,3 +78,6 @@ class CustomBoard():
 
     def copy(self):
         return copy.deepcopy(self)
+    
+    def get_turn(self):
+        return self.board.Turn
