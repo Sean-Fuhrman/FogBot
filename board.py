@@ -4,10 +4,12 @@ import copy
 # Creat board
 
 class CustomBoard():
-    def __init__(self, device) -> None:
+    def __init__(self, device, fen=None) -> None:
         self.device = device
         self.create_board()
         self.generate_state()
+        if fen is not None:
+            self.load_string(fen)
 
     def create_board(self):
         self.board = chess.Board()
@@ -44,6 +46,13 @@ class CustomBoard():
 
     def get_possible_moves(self): 
         return self.board.pseudo_legal_moves
+    
+    def board_to_string(self):
+        return self.board.fen()
+
+    def load_string(self, string):
+        self.board = chess.Board(string)
+        self.generate_state()
     
     def is_game_over(self):
         if self.board.king(chess.WHITE) == None or self.board.king(chess.BLACK) == None:

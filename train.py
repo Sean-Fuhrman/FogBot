@@ -19,7 +19,7 @@ steps_done = 0
 
 
 Transition = namedtuple('Transition',
-                        ('state', 'action', 'next_state', 'reward', 'done'))
+                        ('state', 'action', 'next_state', 'board', 'next_board', 'reward', 'done'))
 
 class ReplayMemory(object):
     def __init__(self, capacity):
@@ -51,7 +51,7 @@ def choose_action(model, game, device, epsilon):
 
         if random.random() < epsilon:
             idx = random.randint(0, len(values) - 1)
-            return values[idx].argmax().item(), boards[idx]
+            return idx, boards[idx]
         else:
             choice = torch.cat(values).argmax().item()
             return choice, boards[choice]
@@ -116,7 +116,7 @@ def train_loop(policy_net, target_net, replay_buffer, config, device):
         reward = get_reward(game, next_board, current_player_color)
         done = game.is_game_over()
 
-        replay_buffer.push(state, torch.tensor(action), next_state, torch.tensor(reward), done) 
+        replay_buffer.push(state, torch.tensor([action]), next_state, game.board_to_string(), next_board.board_to_string(), torch.tensor([reward]), done) 
         optimize_model(policy_net, target_net, replay_buffer, optimizer, config, device)  # Optimize the model
 
         current_player_color = not current_player_color  # Switch player
@@ -146,18 +146,18 @@ def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, dev
     # (a final state would've been the one after which simulation ended)
     non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
                                           batch.done)), device=device, dtype=torch.bool)
-    non_final_next_states = torch.cat([s for s in batch.next_state
-                                                if s is not None])
-    print(batch.state[0].shape)
-    print(len(batch.state))
-    state_batch = torch.cat(batch.state)
     action_batch = torch.cat(batch.action)
     reward_batch = torch.cat(batch.reward)
 
     # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
     # columns of actions taken. These are the actions which would've been taken
     # for each batch state according to policy_net
-    state_action_values = policy_net(state_batch).gather(1, action_batch)
+    state_action_values = []
+    for i in range(len(batch.state)):
+        game_string = batch.board[i]
+        vals, boards = policy_net(game_string) # has grad
+        state_action_values.append(vals[batch.action[i]])
+    state_action_values = torch.tensor(state_action_values) # losses grad
 
     # Compute V(s_{t+1}) for all next states.
     # Expected values of actions for non_final_next_states are computed based
@@ -166,7 +166,15 @@ def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, dev
     # state value or 0 in case the state was final.
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
     with torch.no_grad():
-        next_state_values[non_final_mask] = target_net(non_final_next_states).max(1).values
+        temp = []
+        for i in range(len(batch.next_state)):
+            if batch.done[i]:
+                continue
+            game_string = batch.next_board[i]
+
+            vals, boards = policy_net(game_string)
+            temp.append(max(vals))
+        next_state_values[non_final_mask] = torch.tensor(temp).to(device)
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
@@ -185,10 +193,6 @@ def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, dev
 if __name__ == "__main__":
     config = None
     device = "cpu"
-    if torch.cuda.is_available():
-        device = "cuda"
-    elif torch.backends.mps.is_available():
-        device = "mps"
 
     with open('config.yaml', 'r') as file:
         config = yaml.safe_load(file)

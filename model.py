@@ -2,6 +2,7 @@ import torch as torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import board
 
 class DQN(nn.Module):
     def __init__(self):
@@ -19,11 +20,13 @@ class DQN(nn.Module):
         state = self.activation(self.dense3(state))
         return self.output(state)
 
-    def forward(self, board):
+    def forward(self, board_input):
+        if isinstance(board_input, str):
+            board_input = board.CustomBoard("cpu",fen=board_input)
         values = []
         boards = []
-        for move in board.get_possible_moves():
-            board_copy = board.copy()
+        for move in board_input.get_possible_moves():
+            board_copy = board_input.copy()
             board_copy.update_move(move)
             state = board_copy.get_board_state()
             boards.append(board_copy)
