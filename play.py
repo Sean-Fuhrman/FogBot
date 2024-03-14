@@ -20,12 +20,15 @@ def main():
     chess_board = board.CustomBoard("cpu") ## initializes the game board
     game_window = window.Window()
     user_color = grab_color(game_window, chess_board) ## grab color of player
+    turn = False ## true if white, false if black
     
     ## MAIN PLAYING LOOP 
     while(not chess_board.is_game_over()):
-        game_window.update_board(chess_board.board_to_string()) ## display board to user
+        turn = not turn
+        game_window.display_board(chess_board.board_to_string()) ## display board to user
+        print(chess_board.get_turn())
         
-        if(chess_board.get_turn() == user_color): # get user move if it is user's turn 
+        if(turn): # get user move if it is user's turn
             move = (prompt_user_move(game_window, chess_board))
             chess_board.update_move(move)
             
@@ -45,7 +48,7 @@ def grab_color(game_window, chess_board):
     
 def prompt_user_move(game_window, chess_board):
     while True:
-        chess_move = chess_board.board.Move.from_uci(game_window.prompt_user_move())
+        chess_move = chess.Move.from_uci(game_window.prompt_user_move())
         if(chess_move in (chess_board.get_possible_moves())):
             return chess_move
         else:
