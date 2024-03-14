@@ -118,6 +118,7 @@ def train_loop(policy_net, target_net, replay_buffer, config, device):
     game = board.CustomBoard(device)  # Initialize a chess game
     current_player_color = game.current_turn
     losses = []
+    reward_sum = 0
     while not game.is_game_over():
         state = game.get_board_state().to(device)
         action, mask = choose_action(policy_net,state, game, device, config) 
@@ -128,7 +129,7 @@ def train_loop(policy_net, target_net, replay_buffer, config, device):
 
         reward = torch.tensor([get_reward(game, next_board, current_player_color)])
         done = game.is_game_over()
-
+        reward_sum += reward.item()
         next_mask = get_legal_move_mask(next_board)
 
         replay_buffer.push(state, action, next_state,mask, next_mask, reward, not done) 
@@ -146,7 +147,7 @@ def train_loop(policy_net, target_net, replay_buffer, config, device):
         for key in policy_net_state_dict:
             target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
         target_net.load_state_dict(target_net_state_dict)
-    return torch.mean(torch.tensor(losses)).item()
+    return torch.mean(torch.tensor(losses)).item(), reward_sum
 
 #gotten from https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
 def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, device):

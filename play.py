@@ -5,6 +5,9 @@ import window
 import board 
 import chess
 import model
+import asyncio
+import queue
+import pygame
 
 ## GLOBALS
 with open('config.yaml', 'r') as file:
@@ -26,8 +29,12 @@ def main():
     while(not chess_board.is_game_over()):
         turn = not turn
         game_window.display_board(chess_board.board_to_string()) ## display board to user
-        print(chess_board.get_turn())
-        
+
+        if not game_window.ui_update_queue.empty():
+                msg = game_window.ui_update_queue.get()
+                if msg == 'update_display':
+                    pygame.display.flip()
+
         if(turn): # get user move if it is user's turn
             move = (prompt_user_move(game_window, chess_board))
             chess_board.update_move(move)

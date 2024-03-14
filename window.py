@@ -9,7 +9,8 @@ import os
 import time
 import events 
 import threading
-
+import asyncio
+import queue
 
 
 ## GLOBAL VARIABLES
@@ -45,7 +46,11 @@ class Window():
         global KILL_BOARD
         BACKGROUND_THREAD = None
         KILL_BOARD = False
-          
+        self.ui_update_queue = queue.Queue()
+
+    def update_board(self, board_info):
+        self.draw_base_board() ## constructs a basic chessboard 
+        
     ## draws a basic black and white chess board on a 1024/1024 plane
     def draw_base_board(self):
         SCREEN.fill(GREEN) ## clear the screen 
@@ -150,15 +155,12 @@ class Window():
         BACKGROUND_THREAD = threading.Thread(target=self.board_loop)
         BACKGROUND_THREAD.start()
 
+
     ## METHOD SHOULD ONLY BE CALLED ON A BACKGROUND THREAD - ELSE JUST LOOPS INFINETLY!
     def board_loop(self): 
         global KILL_BOARD
         while KILL_BOARD is not True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    quit()
-            pygame.display.flip()
+            self.ui_update_queue.put('update_display')
     
     ## destroys background thread and clears screen before construction of new board       
     def wipe_board(self):
@@ -171,7 +173,6 @@ class Window():
         ## wipe board
         SCREEN.fill(WHITE)
         
-
     ## welcomes user to game
     ## TODO - make graphical instead of text based
     def user_introduction(self):
