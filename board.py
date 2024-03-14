@@ -66,7 +66,7 @@ class CustomBoard():
             self.current_turn = chess.WHITE
         else:
             self.current_turn = chess.BLACK
-        #self.board.push(move)
+
         if type(move) == str:
             self.board.push_san(move)
         else:
@@ -80,4 +80,4 @@ class CustomBoard():
         return copy.deepcopy(self)
     
     def get_turn(self):
-        return self.board.Turn
+        return self.current_turn
