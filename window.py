@@ -8,11 +8,9 @@ from pygame_widgets.button import Button
 import os
 import time
 import events 
-import threading
 import chess
 import board
-import asyncio
-import queue
+
 
 
 ## GLOBAL VARIABLES
@@ -36,26 +34,11 @@ BEIGE = (245, 245, 220)
 SCREEN = pygame.display.set_mode((WIDTH, HEIGHT)) ## Display Screen
 pygame.display.set_caption("fogbot chess match ")
 
-
-
-
-
 class Window():
-    global BACKGROUND_THREAD ## declare BACKGROUND_THREAD as a global so it can be modified 
-    global KILL_BOARD ## stores whether or not background thread should continue running
-    
-    
-    def __init__ (self, fog):
-        global BACKGROUND_THREAD 
-        global KILL_BOARD
-        BACKGROUND_THREAD = None
-        KILL_BOARD = False
-        self.ui_update_queue = queue.Queue()
 
-    def update_board(self, board_info):
-        self.draw_base_board() ## constructs a basic chessboard 
-        FOGGED = fog
-        
+    def __init__ (self, fog):
+        pass
+    
     ## draws a basic black and white chess board on a 1024/1024 plane
     def draw_base_board(self):
         SCREEN.fill(GREEN) ## clear the screen 
@@ -160,32 +143,14 @@ class Window():
     
     ## generates a board, starts a background thread and displays the board to user given that thread 
     def display_board(self, FEN_NOTATION, chess_board):
-        print("FOGGED ", FOGGED)
         self.wipe_board()
         self.draw_base_board()
         self.draw_pieces(FEN_NOTATION)
         if(FOGGED):
-            print("DRAWING FOG")
             self.draw_fog(chess_board)
-        global BACKGROUND_THREAD
-        BACKGROUND_THREAD = threading.Thread(target=self.board_loop)
-        BACKGROUND_THREAD.start()
 
-
-    ## METHOD SHOULD ONLY BE CALLED ON A BACKGROUND THREAD - ELSE JUST LOOPS INFINETLY!
-    def board_loop(self): 
-        global KILL_BOARD
-        while KILL_BOARD is not True:
-            self.ui_update_queue.put('update_display')
-    
     ## destroys background thread and clears screen before construction of new board       
     def wipe_board(self):
-        global BACKGROUND_THREAD
-        if BACKGROUND_THREAD is not None: ## if background thread already destroyed just wipe
-            ## Destory thread
-            BACKGROUND_THREAD.KILL_BOARD = True
-            BACKGROUND_THREAD = None
-        
         ## wipe board
         SCREEN.fill(WHITE)
         

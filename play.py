@@ -35,12 +35,9 @@ def main():
     ## MAIN PLAYING LOOP 
     while(not chess_board.is_game_over()):
         turn = not turn
-        game_window.display_board(chess_board.board_to_string()) ## display board to user
+        game_window.display_board(chess_board.board_to_string(), chess_board) ## display board to user
 
-        if not game_window.ui_update_queue.empty():
-                msg = game_window.ui_update_queue.get()
-                if msg == 'update_display':
-                    pygame.display.flip()
+        pygame.display.flip()
 
         if(turn): # get user move if it is user's turn
             move = (prompt_user_move(game_window, chess_board))
