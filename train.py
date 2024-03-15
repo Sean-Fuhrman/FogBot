@@ -130,6 +130,8 @@ def train_loop(policy_net, target_net, replay_buffer, config, device):
         reward = torch.tensor([get_reward(game, next_board, current_player_color)])
         done = game.is_game_over()
         reward_sum += reward.item()
+        print(reward.item())
+    
         next_mask = get_legal_move_mask(next_board)
 
         replay_buffer.push(state, action, next_state,mask, next_mask, reward, not done) 
@@ -224,10 +226,10 @@ if __name__ == "__main__":
     for game_index in range(num_games):
         print(f"Starting game {game_index}")
         time_start = time.time()
-        avg_loss = train_loop(policy_net, target_net, replay_buffer, config, device) 
+        avg_loss, reward_sum = train_loop(policy_net, target_net, replay_buffer, config, device) 
         time_end = time.time()
-        print(f"Game {game_index} over, with average loss {avg_loss}, took {time_end - time_start} seconds.")
+        print(f"Game {game_index} over, with average loss {avg_loss}, and {reward_sum} total reward, took {time_end - time_start} seconds.")
         if game_index % 10 == 0:
-            torch.save(policy_net, "model/" + config['model_path'])
+            torch.save(policy_net, "models/" + config['model_path'])
             print("Model saved")
 
