@@ -35,11 +35,10 @@ def main():
     ## MAIN PLAYING LOOP 
     while(not chess_board.is_game_over()):
         turn = not turn
-        game_window.display_board(chess_board.board_to_string(), chess_board) ## display board to user
-
+        game_window.display_board(chess_board.board_to_string(), chess_board) ## display boards to user
         pygame.display.flip()
 
-        if(turn): # get user move if it is user's turn
+        if(turn == user_color): # get user move if it is user's turn
             move = (prompt_user_move(game_window, chess_board))
             try:
                 chess_board.update_move(move)
@@ -61,10 +60,9 @@ def grab_color(game_window, chess_board):
     game_window.user_introduction() ## welcome user 
     is_user_white = game_window.get_user_color() ## stores if user is playing as white or not
     if(is_user_white):
-        player_color = chess.WHITE
+        return True
     else:
-        player_color = chess.BLACK
-    print(player_color)
+        return False
     
 def prompt_user_move(game_window, chess_board):
     return game_window.prompt_user_move()
