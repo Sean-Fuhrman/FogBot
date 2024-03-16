@@ -29,13 +29,13 @@ def main():
     model_fogBot = torch.load("models/"+ CONFIG['model_path'],  map_location=torch.device('cpu')) ## stores model of bot we are playing against
     chess_board = board.CustomBoard("cpu") ## initializes the game board
     game_window = window.Window(True)
-    user_color = grab_color(game_window, chess_board) ## grab color of player
+    user_color, fog_on = game_intro(game_window) ## grab color of player
     turn = False ## true if white, false if black
     
     ## MAIN PLAYING LOOP 
     while(not chess_board.is_game_over()):
         turn = not turn
-        game_window.display_board(chess_board) ## display boards to user
+        game_window.display_board(chess_board, fog_on) ## display boards to user
         pygame.display.flip()
 
         if(turn == user_color): # get user move if it is user's turn
@@ -54,12 +54,9 @@ def main():
                    
     
     
-def grab_color(game_window, chess_board):
-    is_user_white = game_window.get_user_color() ## stores if user is playing as white or not
-    if(is_user_white):
-        return True
-    else:
-        return False
+def game_intro(game_window):
+    return game_window.introduction() ## stores if user is playing as white or not
+
     
 def prompt_user_move(game_window, chess_board):
     return game_window.prompt_user_move()

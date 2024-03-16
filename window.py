@@ -25,6 +25,7 @@ BOARD_TWO = 528
 LARGE_BUTTON_HEIGHT = 128
 LARGE_BUTTON_WIDTH = 256
 LARGE_TEXT_SIZE = 24
+MEDIUM_TEXT_SIZE = 16
 SMALL_BUTTON_WIDTH = 80
 SMALL_BUTTON_HEIGHT = 80
 ## COLORS
@@ -170,11 +171,12 @@ class Window():
                  pygame.draw.rect(SCREEN, GREY, fog)
     
     ## generates a board, starts a background thread and displays the board to user given that thread 
-    def display_board(self, chess_board):
+    def display_board(self, chess_board, fog_on):
         self.wipe_board()
         self.draw_base_board_one()
         self.draw_pieces_board_one(chess_board.board_to_string())
-        self.draw_fog_board_one(chess_board)
+        if(fog_on):
+            self.draw_fog_board_one(chess_board)
         self.draw_base_board_two()
         self.draw_pieces_board_two(chess_board.board_to_string())
 
@@ -183,35 +185,39 @@ class Window():
         ## wipe board
         SCREEN.fill(WHITE)
         
-    ## welcomes user to game
-    ## TODO - make graphical instead of text based
-    def user_introduction(self):
-        print("welcome to chess VS. fogBot!")
-        print("fogbot is a neural network taught by reinforcement learning to play fog of war and original chess")
-
         
-    ## displays two buttons prompting 
-    ## user to decide whether they want to play as white or black
-    def get_user_color(self):
+    ## displays five buttons prompting 
+    ## user to decide whether they want to play as white or black,
+    ## fog on or off, and introduces user to game 
+    def introduction(self):
         SCREEN.fill(BEIGE)
         pygame.init() ## initialize everything
         welcome_button = Custom_Button(LARGE_BUTTON_WIDTH, LARGE_BUTTON_HEIGHT, BROWN, (SCREEN_WIDTH // 2), (SCREEN_HEIGHT // 2), INTRO_STRING, WHITE, LARGE_TEXT_SIZE) 
         welcome_button.draw()
         white_button = Custom_Button(SMALL_BUTTON_WIDTH, SMALL_BUTTON_HEIGHT, DARK_GREY, (SCREEN_WIDTH * 0.75), (SCREEN_HEIGHT * 0.75), "play white", WHITE, LARGE_TEXT_SIZE)
         white_button.draw()
-        black_button = Custom_Button(SMALL_BUTTON_WIDTH, SMALL_BUTTON_HEIGHT, DARK_GREY, (SCREEN_WIDTH * 0.25), (SCREEN_HEIGHT * 0.75), "play black", WHITE, LARGE_TEXT_SIZE)
+        black_button = Custom_Button(SMALL_BUTTON_WIDTH, SMALL_BUTTON_HEIGHT, DARK_GREY, (SCREEN_WIDTH * 0.25), (SCREEN_HEIGHT * 0.75), "play black", WHITE, LARGE_TEXT_SIZE)        
         black_button.draw()
+        fog_on_button = Custom_Button(SMALL_BUTTON_WIDTH, SMALL_BUTTON_HEIGHT, DARK_GREY, (SCREEN_WIDTH * 0.25), (SCREEN_HEIGHT * 0.25), "toggle fog on", WHITE, MEDIUM_TEXT_SIZE)
+        fog_on_button.draw()
+        fog_off_button = Custom_Button(SMALL_BUTTON_WIDTH, SMALL_BUTTON_HEIGHT, DARK_GREY, (SCREEN_WIDTH * 0.75), (SCREEN_HEIGHT * 0.25), "toggle fog off", WHITE, MEDIUM_TEXT_SIZE)
+        fog_off_button.draw()
+        fog_on = False
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     quit()
                 elif event.type == pygame.MOUSEBUTTONDOWN:
-                   if welcome_button.is_clicked(event.pos):
-                       print("Button Clicked!")
-                   if white_button.is_clicked(event.pos):
-                        return True
-                   if black_button.is_clicked(event.pos):
-                       return False
+                    if welcome_button.is_clicked(event.pos):
+                        print("Button Clicked!")
+                    elif white_button.is_clicked(event.pos):
+                        return (True, fog_on)
+                    elif black_button.is_clicked(event.pos):
+                        return (False, fog_on)
+                    elif fog_on_button.is_clicked(event.pos):
+                        fog_on = True
+                    elif fog_off_button.is_clicked(event.pos):
+                        fog_on = False
         
             pygame.display.flip()
             
