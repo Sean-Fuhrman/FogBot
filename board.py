@@ -39,7 +39,7 @@ class CustomBoard():
 
     
     ## TODO - MODIFY METHOD SO THAT IT DISPLAYS FOGGED SQUARES FOR USER'S CHOICE NOT JUST WHITE!
-    def is_square_fogged(self, square,):
+    def is_square_fogged(self, square):
         if square in [x.to_square for x in self.board.pseudo_legal_moves]: ## HOW DO I CHECK FOR LEGAL MOVES FOR USER??
             return False
         elif self.board.color_at(square) == self.current_turn:
@@ -63,16 +63,17 @@ class CustomBoard():
         return False
 
     def update_move(self, move):
+        if type(move) == str:
+            self.board.push_san(move)
+        else:
+            self.board.push(move)
+       
         if(self.current_turn == chess.BLACK):
             self.turn_number += 1
             self.current_turn = chess.WHITE
         else:
             self.current_turn = chess.BLACK
-
-        if type(move) == str:
-            self.board.push_san(move)
-        else:
-            self.board.push(move)
+        
         self.generate_state()
 
     def get_board_state(self):

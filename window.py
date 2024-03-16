@@ -78,15 +78,64 @@ class Window():
         self.draw_fog(chess_board, BOARD_ONE)
     
     ## SEAN MODIFY THESE ONES
-    def draw_pieces_board_two(self, FEN_STRING):
-        self.draw_pieces(FEN_STRING, BOARD_TWO)
+    def draw_pieces_board_two(self,bot_state, user_color):
+        if bot_state is None:
+            return
+        
+        one_hot_to_piece = {
+            0: None,
+            1: 'pawn',
+            2: 'knight',
+            3: 'bishop',
+            4: 'rook',
+            5: 'queen',
+            6: 'king'
+        }
+
+        color_to_string = { 
+            chess.WHITE: 'white',
+            chess.BLACK: 'black'
+        }
+
+        self.draw_base_board(BOARD_TWO)
+        bot_color = not user_color
+        state = bot_state
+        one_hot = state[:576]
+        extra_info = state[576:]
+        turn_count = extra_info[0].item()
+        current_turn = extra_info[1].item()
+        print(f"Turn count: {turn_count}, Current turn: {color_to_string[current_turn]}")
+        one_hot = one_hot.reshape(8,8,9)
+
+        
+        for i in range(8):
+            for j in range(8):
+                square = chess.square(i,j)
+                one_hot_at_square = one_hot[i][7-j]
+                peice_info = one_hot_at_square[:7]
+                fog = one_hot_at_square[8]
+                if fog:
+                    #draw fog
+                    fog = pygame.Rect(BOARD_TWO + (i * TILE_WIDTH), j * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
+                    pygame.draw.rect(SCREEN, GREY, fog)
+                    # check that all other encodings are 0
+                    if peice_info.sum() != 0:
+                        print("Fogged square has pieces on it")
+                else:
+                    piece = peice_info.argmax().item()
+                    is_owned = one_hot_at_square[7]
+                    if piece:
+                        peice_type = one_hot_to_piece[piece]
+                        if peice_type:
+                            if is_owned:
+                                color = color_to_string[bot_color]
+                            else:
+                                color = color_to_string[user_color]
+                            piece = IMG_DIR + color + "_" + peice_type + ".png"
+                            self.draw_piece(piece, i, j, BOARD_TWO)
     
     def draw_base_board_two(self):
         self.draw_base_board(BOARD_TWO)
-        
-    def draw_fog_board_two(self, chess_board):
-        self.draw_fog(chess_board, BOARD_TWO)
-    
         
     
     def draw_pieces(self, FEN_string, BOARD):
@@ -171,14 +220,14 @@ class Window():
                  pygame.draw.rect(SCREEN, GREY, fog)
     
     ## generates a board, starts a background thread and displays the board to user given that thread 
-    def display_board(self, chess_board, fog_on):
+    def display_board(self, chess_board, bot_state, fog_on,user_color):
         self.wipe_board()
         self.draw_base_board_one()
         self.draw_pieces_board_one(chess_board.board_to_string())
         if(fog_on):
             self.draw_fog_board_one(chess_board)
         self.draw_base_board_two()
-        self.draw_pieces_board_two(chess_board.board_to_string())
+        self.draw_pieces_board_two(bot_state, user_color)
 
     ## destroys background thread and clears screen before construction of new board       
     def wipe_board(self):
