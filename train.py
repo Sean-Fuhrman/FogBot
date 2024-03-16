@@ -96,22 +96,23 @@ def get_reward(game, next_board, current_player_color): #TODO:
     ## if either player king is missing king hardcode reward
     if(not black_king_seen):
         if(current_player_color == chess.WHITE):
-            return 100
+            return 1
         else:
-            return -100
+            return -1
     if(not white_king_seen):
         if(current_player_color == chess.BLACK):
-            return 100
+            return 1
         else:
-            return -100 
+            return -1
     # print(game.board.fen() == next_board.board.fen())
-    prev_val = get_white_score(game)
-    next_val = get_white_score(next_board)
-    # print(f"prev_val: {prev_val}, next_val: {next_val}")
-    if(current_player_color == chess.WHITE):
-        return next_val - prev_val
-    else:
-        return prev_val - next_val
+    # prev_val = get_white_score(game)
+    # next_val = get_white_score(next_board)
+    # # print(f"prev_val: {prev_val}, next_val: {next_val}")
+    # if(current_player_color == chess.WHITE):
+    #     return next_val - prev_val
+    # else:
+    #     return prev_val - next_val
+    return 0
 
 def make_target_net_move(game, target_net, device):
     state = game.get_board_state().to(device)
@@ -125,7 +126,8 @@ def make_target_net_move(game, target_net, device):
 def train_loop(policy_net, target_net, replay_buffer, config, device):
     game = board.CustomBoard(device)  # Initialize a chess game
     policy_color = random.choice([chess.WHITE, chess.BLACK])
-    target_color = not policy_color
+    policy_color_string = "white" if policy_color == chess.WHITE else "black"
+    print(f"Policy color: {policy_color_string}")
     if policy_color == chess.BLACK:
         game = make_target_net_move(game, target_net, device)
     losses = []
@@ -136,7 +138,7 @@ def train_loop(policy_net, target_net, replay_buffer, config, device):
         
         next_board = game.copy()
         next_board.update_move(convert_action_to_move(action))
-        # print(game.board.fen() == next_board.board.fen())
+
         if not next_board.is_game_over():
             next_board = make_target_net_move(next_board, target_net, device)       
 
