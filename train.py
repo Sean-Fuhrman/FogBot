@@ -61,12 +61,12 @@ def choose_action(model, state,game, device,config):
         steps_done += 1
         values = model(state)
         mask = get_legal_move_mask(game)
-        values[~mask] = 0 # Set illegal moves to 0 so they are not chosen
+        values[~mask] = -float("inf") # Set illegal moves to -inf so they are not chosen
         if random.random() < epsilon:
-            return torch.tensor([random.choice(mask.nonzero(as_tuple=True)[0])]), mask
+            return torch.tensor([random.choice(mask.nonzero(as_tuple=True)[0])]).to(device), mask
         else:
-            selected_index = torch.multinomial(values, 1)
-            return selected_index, mask
+            selected_index = torch.multinomial(F.softmax(values, dim=0), 1)
+            return selected_index.to(device), mask
 
 
 def get_white_score(game):
