@@ -98,23 +98,22 @@ def get_reward(game, next_board, current_player_color): #TODO:
     ## if either player king is missing king hardcode reward
     if(not black_king_seen):
         if(current_player_color == chess.WHITE):
-            return 1
+            return 100
         else:
-            return -1
+            return -100
     if(not white_king_seen):
         if(current_player_color == chess.BLACK):
-            return 1
+            return 100
         else:
-            return -1
+            return -100
     # print(game.board.fen() == next_board.board.fen())
-#     prev_val = get_white_score(game)
-#     next_val = get_white_score(next_board)
-#     # print(f"prev_val: {prev_val}, next_val: {next_val}")
-#     if(current_player_color == chess.WHITE):
-#         return next_val - prev_val
-#     else:
-#         return prev_val - next_val
-    return 0
+    prev_val = get_white_score(game)
+    next_val = get_white_score(next_board)
+    # print(f"prev_val: {prev_val}, next_val: {next_val}")
+    if(current_player_color == chess.WHITE):
+        return next_val - prev_val
+    else:
+        return prev_val - next_val
 
 def make_target_net_move(game, target_net, device):
     state = game.get_board_state().to(device)
