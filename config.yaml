@@ -7,7 +7,7 @@ batch_size : 128 #the number of transitions sampled from the replay buffer
 
 gamma : 0.99 #discount factor
 
-num_games : 1000 #number of games to play
+num_games : 1000000 #number of games to play
 
 eps_start : 0.9 #starting value of epsilon
 

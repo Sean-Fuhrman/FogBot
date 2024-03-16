@@ -98,22 +98,22 @@ def get_reward(game, next_board, current_player_color): #TODO:
     ## if either player king is missing king hardcode reward
     if(not black_king_seen):
         if(current_player_color == chess.WHITE):
-            return 100
+            return 1
         else:
-            return -100
+            return -1
     if(not white_king_seen):
         if(current_player_color == chess.BLACK):
-            return 100
+            return 1
         else:
-            return -100
+            return -1
     # print(game.board.fen() == next_board.board.fen())
-    prev_val = get_white_score(game)
-    next_val = get_white_score(next_board)
-    # print(f"prev_val: {prev_val}, next_val: {next_val}")
-    if(current_player_color == chess.WHITE):
-        return next_val - prev_val
-    else:
-        return prev_val - next_val
+#     prev_val = get_white_score(game)
+#     next_val = get_white_score(next_board)
+#     # print(f"prev_val: {prev_val}, next_val: {next_val}")
+#     if(current_player_color == chess.WHITE):
+#         return next_val - prev_val
+#     else:
+#         return prev_val - next_val
     return 0
 
 def make_target_net_move(game, target_net, device):
@@ -237,11 +237,11 @@ if __name__ == "__main__":
 
     optimizer = torch.optim.Adam(policy_net.parameters(), lr=config['lr'])
 
+    losses=[]
 
     for game_index in range(num_games):
         print(f"Starting game {game_index}")
         time_start = time.time()
-        losses=[]
         avg_loss, reward_sum = train_loop(policy_net, target_net, replay_buffer, config, device) 
         losses.append(avg_loss)
         time_end = time.time()
