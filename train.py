@@ -83,11 +83,9 @@ def get_white_score(game):
     for square in chess.SQUARES:
         piece = game.board.piece_at(square)
         if piece and piece.color == chess.WHITE:
-            if piece.piece_type == chess.KING:
-                white_val += piece_values[piece.piece_type]
+            white_val += piece_values[piece.piece_type]
         elif piece and piece.color == chess.BLACK:
-            if piece.piece_type == chess.KING:
-                black_val += piece_values[piece.piece_type]
+            black_val += piece_values[piece.piece_type]
 
     return white_val - black_val
 
@@ -106,17 +104,30 @@ def get_reward(game, next_board, current_player_color): #TODO:
             return 100
         else:
             return -100 
-    
+    # print(game.board.fen() == next_board.board.fen())
     prev_val = get_white_score(game)
     next_val = get_white_score(next_board)
+    # print(f"prev_val: {prev_val}, next_val: {next_val}")
     if(current_player_color == chess.WHITE):
         return next_val - prev_val
     else:
         return prev_val - next_val
 
+def make_target_net_move(game, target_net, device):
+    state = game.get_board_state().to(device)
+    values = target_net(state).to(device)
+    mask = get_legal_move_mask(game)
+    values = values * mask.to(device)
+    action = torch.argmax(values)
+    game.update_move(convert_action_to_move(action.to("cpu")))
+    return game
+
 def train_loop(policy_net, target_net, replay_buffer, config, device):
     game = board.CustomBoard(device)  # Initialize a chess game
-    current_player_color = game.current_turn
+    policy_color = random.choice([chess.WHITE, chess.BLACK])
+    target_color = not policy_color
+    if policy_color == chess.BLACK:
+        game = make_target_net_move(game, target_net, device)
     losses = []
     reward_sum = 0
     while not game.is_game_over():
@@ -124,21 +135,23 @@ def train_loop(policy_net, target_net, replay_buffer, config, device):
         action, mask = choose_action(policy_net,state, game, device, config) 
         
         next_board = game.copy()
-        next_board.board.push(convert_action_to_move(action))
-        next_state = next_board.get_board_state().to(device)
+        next_board.update_move(convert_action_to_move(action))
+        # print(game.board.fen() == next_board.board.fen())
+        if not next_board.is_game_over():
+            next_board = make_target_net_move(next_board, target_net, device)       
 
-        reward = torch.tensor([get_reward(game, next_board, current_player_color)])
+        reward = torch.tensor([get_reward(game, next_board, policy_color)])
         done = game.is_game_over()
         reward_sum += reward.item()
+        next_state = next_board.get_board_state().to(device)
         next_mask = get_legal_move_mask(next_board)
 
         replay_buffer.push(state, action, next_state,mask, next_mask, reward, not done) 
         loss = optimize_model(policy_net, target_net, replay_buffer, optimizer, config, device)  # Optimize the model
         if loss != -1:
             losses.append(loss)
-        current_player_color = not current_player_color  # Switch player
         game = next_board  # Update the game state
-
+        
         # Soft update of the target network's weights
         # θ′ ← τ θ + (1 −τ )θ′
         TAU = config['tau']
@@ -182,7 +195,7 @@ def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, dev
     # state value or 0 in case the state was final.
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
     with torch.no_grad():
-        next_state_values[non_final_mask] = (target_net(non_final_next_states) * next_mask_batch.int()).max(1).values
+        next_state_values[non_final_mask] = (target_net(non_final_next_states) * next_mask_batch[non_final_mask].int()).max(1).values
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
@@ -224,10 +237,10 @@ if __name__ == "__main__":
     for game_index in range(num_games):
         print(f"Starting game {game_index}")
         time_start = time.time()
-        avg_loss = train_loop(policy_net, target_net, replay_buffer, config, device) 
+        avg_loss, reward_sum = train_loop(policy_net, target_net, replay_buffer, config, device) 
         time_end = time.time()
-        print(f"Game {game_index} over, with average loss {avg_loss}, took {time_end - time_start} seconds.")
+        print(f"Game {game_index} over, with average loss {avg_loss}, and {reward_sum} total reward, took {time_end - time_start} seconds.")
         if game_index % 10 == 0:
-            torch.save(policy_net, "model/" + config['model_path'])
+            torch.save(target_net, "models/" + config['model_path'])
             print("Model saved")
 
