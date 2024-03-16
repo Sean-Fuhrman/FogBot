@@ -37,8 +37,10 @@ class CustomBoard():
         self.state = self.one_hot
         self.state = torch.cat((self.state.flatten(), torch.tensor([self.turn_number]), torch.tensor([self.current_turn])), dim=0)
 
-    def is_square_fogged(self, square):
-        if square in [x.to_square for x in self.board.pseudo_legal_moves]:
+    
+    ## TODO - MODIFY METHOD SO THAT IT DISPLAYS FOGGED SQUARES FOR USER'S CHOICE NOT JUST WHITE!
+    def is_square_fogged(self, square,):
+        if square in [x.to_square for x in self.board.pseudo_legal_moves]: ## HOW DO I CHECK FOR LEGAL MOVES FOR USER??
             return False
         elif self.board.color_at(square) == self.current_turn:
             return False
@@ -81,3 +83,10 @@ class CustomBoard():
     
     def get_turn(self):
         return self.current_turn
+    
+    
+    def coordinate_to_square(self, row, coloumn):
+        square = chr((ord('a')) + coloumn) + str(8 - row)
+        square = chess.Square(str(square))
+        print(square)
+            

@@ -35,7 +35,7 @@ def main():
     ## MAIN PLAYING LOOP 
     while(not chess_board.is_game_over()):
         turn = not turn
-        game_window.display_board(chess_board.board_to_string(), chess_board) ## display boards to user
+        game_window.display_board(chess_board) ## display boards to user
         pygame.display.flip()
 
         if(turn == user_color): # get user move if it is user's turn
@@ -51,13 +51,10 @@ def main():
             bot_move = select_action(chess_board, model_fogBot)
             chess_board.update_move(bot_move)
     
-    ## display final board        
-    game_window.display_board(chess_board.board_to_string())
                    
     
     
 def grab_color(game_window, chess_board):
-    game_window.user_introduction() ## welcome user 
     is_user_white = game_window.get_user_color() ## stores if user is playing as white or not
     if(is_user_white):
         return True
