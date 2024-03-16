@@ -9,6 +9,7 @@ import chess
 import math
 import random
 import time
+import matplotlib.pyplot as plt
 
 from collections import namedtuple, deque
 from itertools import count
@@ -60,12 +61,12 @@ def choose_action(model, state,game, device,config):
         steps_done += 1
         values = model(state)
         mask = get_legal_move_mask(game)
-        values[~mask] = -float('inf') # Set illegal moves to -inf so they are not chosen
+        values[~mask] = 0 # Set illegal moves to 0 so they are not chosen
         if random.random() < epsilon:
             return torch.tensor([random.choice(mask.nonzero(as_tuple=True)[0])]), mask
         else:
-            selected_index = np.random.choice(len(values), p=values)
-            return torch.tensor([selected_index]), mask
+            selected_index = torch.multinomial(values, 1)
+            return selected_index, mask
 
 
 def get_white_score(game):
@@ -240,10 +241,15 @@ if __name__ == "__main__":
     for game_index in range(num_games):
         print(f"Starting game {game_index}")
         time_start = time.time()
+        losses=[]
         avg_loss, reward_sum = train_loop(policy_net, target_net, replay_buffer, config, device) 
+        losses.append(avg_loss)
         time_end = time.time()
         print(f"Game {game_index} over, with average loss {avg_loss}, and {reward_sum} total reward, took {time_end - time_start} seconds.")
-        if game_index % 10 == 0:
+        if game_index % 100 == 0:
             torch.save(target_net, "models/" + config['model_path'])
+            plt.plot(losses)
+            plt.savefig("plots/losses.png")
+            plt.close()
             print("Model saved")
 

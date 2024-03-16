@@ -18,4 +18,4 @@ class DQN(nn.Module):
         state = self.activation(self.dense1(state))
         state = self.activation(self.dense2(state))
         state = self.activation(self.dense3(state))
-        return F.softmax(self.output(state))
+        return F.softmax(self.output(state), dim=0)
