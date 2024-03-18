@@ -1,7 +1,7 @@
 #Config for training and playing model
 
 # Path to save model inside models folder
-model_path: "model (3).pth" 
+model_path: "model_3_18.pth" 
 
 batch_size : 128 #the number of transitions sampled from the replay buffer
 
@@ -15,7 +15,7 @@ eps_end : 0.05 #final value of epsilon
 
 eps_decay : 1000 #decay rate of epsilon
 
-tau : 0.005 #update rate of the target network
+tau : 0.000005 #update rate of the target network
 
 lr : 0.001 #learning rate
 
