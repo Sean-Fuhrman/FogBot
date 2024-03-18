@@ -64,7 +64,8 @@ class CustomBoard():
 
     def update_move(self, move):
         if type(move) == str:
-            self.board.push_san(move)
+            move = chess.Move.from_uci(move)
+            self.board.push(move)
         else:
             self.board.push(move)
        
