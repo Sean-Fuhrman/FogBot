@@ -45,8 +45,8 @@ def get_legal_move_mask(game):
         mask[from_square*64 + to_square] = 1
 
     return mask.bool()
-def convert_action_to_move(action):
-    return chess.Move(from_square=action//64, to_square=action%64, promotion=chess.QUEEN)
+def convert_action_to_move(action, game):
+    return chess.Move(from_square=action//64, to_square=action%64)
 ## use epsilon greedy algorithm to decide our next state
 ## with probability epsilon take a random action (this enduces exploration)
 ## else take action to jump to state with highest estimated value
@@ -121,7 +121,7 @@ def make_target_net_move(game, target_net, device):
     mask = get_legal_move_mask(game)
     values = values * mask.to(device)
     action = torch.argmax(values)
-    game.update_move(convert_action_to_move(action.to("cpu")))
+    game.update_move(convert_action_to_move(action.to("cpu"), game))
     return game
 
 def train_loop(policy_net, target_net, replay_buffer, config, device):
