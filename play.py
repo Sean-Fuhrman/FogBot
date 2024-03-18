@@ -19,7 +19,7 @@ def select_action(board, fogBot):
     mask = train.get_legal_move_mask(board)
     values = values * mask
     action = torch.argmax(values)
-    move = train.convert_action_to_move(action)
+    move = train.convert_action_to_move(action, board)
     return move
 
 ## play class allows a user to play chess against fog-bot in either the normal or fogged variation

@@ -46,11 +46,16 @@ def get_legal_move_mask(game):
 
     return mask.bool()
 def convert_action_to_move(action, game):
-    return chess.Move(from_square=action//64, to_square=action%64)
+    from_square = action//64
+    to_square = action % 64
+    if game.board.piece_at(from_square) == chess.PAWN and (to_square >= 56 or to_square <= 7):
+        return chess.Move(from_square, to_square, promotion = chess.QUEEN)
+    else:
+        return chess.Move(from_square, to_square)
 ## use epsilon greedy algorithm to decide our next state
 ## with probability epsilon take a random action (this enduces exploration)
 ## else take action to jump to state with highest estimated value
-def choose_action(model, state,game, device,config):
+def choose_action(model, state, game, device,config):
     with torch.no_grad():
         global steps_done
 
