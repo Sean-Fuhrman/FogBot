@@ -138,7 +138,7 @@ def train_loop(policy_net, target_net, replay_buffer, config, device):
         action, mask = choose_action(policy_net,state, game, device, config) 
         
         next_board = game.copy()
-        next_board.update_move(convert_action_to_move(action))
+        next_board.update_move(convert_action_to_move(action, game))
 
         if not next_board.is_game_over():
             next_board = make_target_net_move(next_board, target_net, device)       
@@ -201,7 +201,8 @@ def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, dev
         next_state_values[non_final_mask] = (target_net(non_final_next_states) * next_mask_batch[non_final_mask].int()).max(1).values
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
-
+    print(expected_state_action_values.shape)
+    print(state_action_values.shape)
     # Compute Huber loss
     criterion = nn.SmoothL1Loss()
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
