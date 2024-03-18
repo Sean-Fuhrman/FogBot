@@ -206,8 +206,8 @@ def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, dev
         next_state_values[non_final_mask] = (target_net(non_final_next_states) * next_mask_batch[non_final_mask].int()).max(1).values
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
-    print(expected_state_action_values.shape)
-    print(state_action_values.shape)
+    print(expected_state_action_values)
+    print(state_action_values)
     # Compute Huber loss
     criterion = nn.SmoothL1Loss()
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
@@ -215,7 +215,7 @@ def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, dev
     optimizer.zero_grad()
     loss.backward()
     # In-place gradient clipping
-    torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
+    torch.nn.utils.clip_grad_value_(policy_net.parameters(), 1)
     optimizer.step()
     return loss.item()
 
@@ -225,8 +225,8 @@ if __name__ == "__main__":
     device = "cpu"
     if torch.cuda.is_available():
         device = "cuda"
-    if torch.backends.mps.is_available():
-        device = "mps"
+    # if torch.backends.mps.is_available():
+    #     device = "mps"
         
     with open('config.yaml', 'r') as file:
         config = yaml.safe_load(file)
@@ -235,7 +235,7 @@ if __name__ == "__main__":
     replay_buffer = ReplayMemory(config['replay_buffer_size'])
     policy_net = model.DQN()
     if config['load_model']:
-        policy_net = torch.load(config['model_path'])
+        policy_net = torch.load("models/" + config['model_path'], map_location=device)
     policy_net = policy_net.to(device)
     target_net = model.DQN().to(device)
     target_net.load_state_dict(policy_net.state_dict())
