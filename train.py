@@ -46,7 +46,7 @@ def get_legal_move_mask(game):
 
     return mask.bool()
 def convert_action_to_move(action):
-    return chess.Move(from_square=action//64, to_square=action%64)
+    return chess.Move(from_square=action//64, to_square=action%64, promotion=chess.QUEEN)
 ## use epsilon greedy algorithm to decide our next state
 ## with probability epsilon take a random action (this enduces exploration)
 ## else take action to jump to state with highest estimated value
