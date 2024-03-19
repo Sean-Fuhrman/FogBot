@@ -241,12 +241,14 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(policy_net.parameters(), lr=config['lr'])
 
     losses=[]
+    rewards=[]
 
     for game_index in range(num_games):
         print(f"Starting game {game_index}")
         time_start = time.time()
         avg_loss, reward_sum = train_loop(policy_net, target_net, replay_buffer, config, device) 
         losses.append(avg_loss)
+        rewards.append(reward_sum/(game_index+1))
         time_end = time.time()
         print(f"Game {game_index} over, with average loss {avg_loss}, and {reward_sum} total reward, took {time_end - time_start} seconds.")
         if game_index % 100 == 0:
@@ -254,5 +256,8 @@ if __name__ == "__main__":
             plt.plot(losses)
             plt.savefig("plots/losses.png")
             plt.close()
+            plt.plot(rewards)
+            plt.savefig("plots/rewards.png")
+            plt.close
             print("Model saved")
 
