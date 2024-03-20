@@ -15,7 +15,7 @@ eps_end : 0.05 #final value of epsilon
 
 eps_decay : 1000 #decay rate of epsilon
 
-tau : 0.005 #update rate of the target network
+tau : 0.000005 #update rate of the target network
 
 lr : 0.001 #learning rate
 

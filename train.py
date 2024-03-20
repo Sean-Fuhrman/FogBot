@@ -206,8 +206,6 @@ def optimize_model(policy_net, target_net, replay_buffer, optimizer, config, dev
         next_state_values[non_final_mask] = (target_net(non_final_next_states) * next_mask_batch[non_final_mask].int()).max(1).values
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
-    print(expected_state_action_values)
-    print(state_action_values)
     # Compute Huber loss
     criterion = nn.SmoothL1Loss()
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
@@ -234,27 +232,56 @@ if __name__ == "__main__":
     num_games = config['num_games']
     replay_buffer = ReplayMemory(config['replay_buffer_size'])
     policy_net = model.DQN()
+    
+    losses=[]
+    rewards=[]
+    
+    np.savetxt('models/loss_values.txt', losses)
+    np.savetxt('models/reward_values.txt', rewards)
+    
     if config['load_model']:
         policy_net = torch.load("models/" + config['model_path'], map_location=device)
+        
+        with open('models/loss_values.txt', 'r') as file:
+                for line in file:
+                    losses.append(float(line.strip()))
+        with open('models/reward_values.txt', 'r') as file:
+                for line in file:
+                    rewards.append(float(line.strip()))
+                    
     policy_net = policy_net.to(device)
     target_net = model.DQN().to(device)
     target_net.load_state_dict(policy_net.state_dict())
 
     optimizer = torch.optim.Adam(policy_net.parameters(), lr=config['lr'])
 
-    losses=[]
+    
+    running_reward = 0
 
     for game_index in range(num_games):
         print(f"Starting game {game_index}")
         time_start = time.time()
         avg_loss, reward_sum = train_loop(policy_net, target_net, replay_buffer, config, device) 
         losses.append(avg_loss)
+        running_reward += reward_sum
+        rewards.append(running_reward/(game_index+1))
         time_end = time.time()
         print(f"Game {game_index} over, with average loss {avg_loss}, and {reward_sum} total reward, took {time_end - time_start} seconds.")
         if game_index % 100 == 0:
             torch.save(target_net, "models/" + config['model_path'])
+            
+            with open('models/loss_values.txt', 'w') as file:
+                for item in losses:
+                    file.write(str(item) + '\n')
+            with open('models/reward_values.txt', 'w') as file:
+                for item in rewards:
+                    file.write(str(item) + '\n')
+                        
             plt.plot(losses)
             plt.savefig("plots/losses.png")
+            plt.close()
+            plt.plot(rewards)
+            plt.savefig("plots/rewards.png")
             plt.close()
             print("Model saved")
 
