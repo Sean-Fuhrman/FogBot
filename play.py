@@ -8,6 +8,7 @@ import train
 import asyncio
 import queue
 import pygame
+import time
 
 ## GLOBALS
 with open('config.yaml', 'r') as file:
@@ -32,6 +33,7 @@ def main():
     user_color, fog_on = game_intro(game_window) ## grab color of player
     turn = False ## true if white, false if black
     bot_state = None
+    play_itself = CONFIG['play_itself']
     ## MAIN PLAYING LOOP x
     while(not chess_board.is_game_over()):
         turn = not turn
@@ -40,6 +42,11 @@ def main():
         pygame.display.flip()
 
         if(turn == user_color): # get user move if it is user's turn
+            if play_itself:
+                move = select_action(chess_board, model_fogBot)
+                chess_board.update_move(move)
+                time.sleep(2)
+                continue
             move = (prompt_user_move(game_window, chess_board))
             try:
                 chess_board.update_move(move)
@@ -53,6 +60,9 @@ def main():
 
             bot_move = select_action(chess_board, model_fogBot)
             chess_board.update_move(bot_move)
+        
+        if play_itself:
+            time.sleep(2)
     
                    
     
